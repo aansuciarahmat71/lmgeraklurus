@@ -978,6 +978,105 @@
   .track-wrap.bg-live.mode-horizontal,
   html[data-theme="light"] .track-wrap.bg-live.mode-horizontal{background-image:none !important;}
 </style>
+<!-- ===== PROTEKSI KONTEN (anti klik kanan, simpan halaman, cetak, screenshot) ===== -->
+<style id="sp-css">
+@media print{html,body{display:none!important}}
+#sp-cover{position:fixed;inset:0;z-index:2147483647;background:#0b0b0b;color:#fff;display:none;align-items:center;justify-content:center;font:600 16px/1.6 system-ui,sans-serif;text-align:center;padding:24px}
+html.sp-hide #sp-cover{display:flex}
+#sp-wm{position:fixed;inset:0;z-index:2147483646;pointer-events:none;opacity:.07}
+</style>
+<script id="sp-js">
+(function(){
+'use strict';
+/* ====== PENGATURAN ====== */
+var CFG={
+  watermark:false,                       // ubah ke true untuk watermark samar di seluruh layar
+  watermarkText:'AAN SUCIARAHMAT, M.Pd / SMAN 1 Majalengka',
+  coverText:'Konten disembunyikan demi perlindungan hak cipta.',
+  hideOnBlur:true                        // sembunyikan layar saat jendela kehilangan fokus (alat snipping/screenshot)
+};
+
+/* 1. Deteksi salinan hasil "Save page as" (Chrome/Edge menyisipkan komentar "saved from url") */
+try{
+  var cn=document.childNodes;
+  for(var i=0;i<cn.length;i++){
+    if(cn[i].nodeType===8 && /saved from url/i.test(cn[i].nodeValue||'')){
+      window.stop();
+      document.documentElement.innerHTML='<body style="margin:0;background:#0b0b0b;color:#fff;font:600 16px/1.6 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px">Salinan halaman ini tidak dapat digunakan.<br>Silakan buka dari tautan resminya.</body>';
+      return;
+    }
+  }
+}catch(_){}
+
+var root=document.documentElement;
+function block(e){ if(e.cancelable) e.preventDefault(); e.stopPropagation(); return false; }
+function hide(){ root.classList.add('sp-hide'); }
+function show(){ root.classList.remove('sp-hide'); }
+var flashT;
+function flash(ms){ hide(); clearTimeout(flashT); flashT=setTimeout(function(){ if(document.hasFocus()||!CFG.hideOnBlur) show(); }, ms||1500); }
+
+/* 2. Anti klik kanan, salin, potong, seret, pilih teks */
+['contextmenu','copy','cut','dragstart','selectstart'].forEach(function(t){
+  document.addEventListener(t,block,true);
+  window.addEventListener(t,block,true);
+});
+
+/* 3. Blokir pintasan keyboard: Simpan, Lihat Sumber, Cetak, DevTools, Screenshot */
+function onKey(e){
+  var code=e.code||'', mod=e.ctrlKey||e.metaKey;
+  // F12 & PrintScreen
+  if(code==='F12' || e.key==='F12'){ return block(e); }
+  if(code==='PrintScreen' || e.key==='PrintScreen'){
+    try{ navigator.clipboard && navigator.clipboard.writeText(''); }catch(_){}
+    flash(2000); return block(e);
+  }
+  // Ctrl/Cmd + S (simpan), U (sumber), P (cetak), A (pilih semua), C/X (salin/potong)
+  if(mod && !e.shiftKey && !e.altKey && /^Key[SUPACX]$/.test(code)){ return block(e); }
+  // Ctrl+Shift+I/J/C/K (DevTools), Ctrl+Shift+S
+  if(e.ctrlKey && e.shiftKey && /^Key[IJCKS]$/.test(code)){ return block(e); }
+  // Mac: Cmd+Option+I/J/C/U
+  if(e.metaKey && e.altKey && /^Key[IJCU]$/.test(code)){ return block(e); }
+  // Win+Shift+S (Snipping Tool) & Mac Cmd+Shift+3/4/5
+  if(e.metaKey && e.shiftKey && (code==='KeyS'||/^Digit[345]$/.test(code))){ flash(2500); }
+}
+window.addEventListener('keydown',onKey,true);
+window.addEventListener('keyup',function(e){
+  if((e.code||e.key)==='PrintScreen'){
+    try{ navigator.clipboard && navigator.clipboard.writeText(''); }catch(_){}
+    flash(2000);
+  }
+},true);
+
+/* 4. Cetak / Simpan sebagai PDF */
+window.addEventListener('beforeprint',hide);
+window.addEventListener('afterprint',function(){ if(document.hasFocus()) show(); });
+
+/* 5. Sembunyikan layar saat fokus hilang / tab disembunyikan */
+if(CFG.hideOnBlur){
+  window.addEventListener('blur',hide);
+  window.addEventListener('focus',show);
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden) hide(); else if(document.hasFocus()) show();
+  });
+}
+
+/* 6. Elemen penutup + watermark opsional */
+function build(){
+  if(document.getElementById('sp-cover')) return;
+  var c=document.createElement('div'); c.id='sp-cover'; c.textContent=CFG.coverText;
+  root.appendChild(c);
+  if(CFG.watermark){
+    var t=String(CFG.watermarkText).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    var svg='<svg xmlns="http://www.w3.org/2000/svg" width="380" height="240"><text x="50%" y="50%" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#000" transform="rotate(-24 190 120)">'+t+'</text></svg>';
+    var w=document.createElement('div'); w.id='sp-wm';
+    w.style.backgroundImage='url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'")';
+    root.appendChild(w);
+  }
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();
+})();
+</script>
+<!-- ===== AKHIR PROTEKSI ===== -->
 </head>
 <body>
 
