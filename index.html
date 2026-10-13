@@ -1022,6 +1022,12 @@
   .graph-card .graph-title span.unit{display:none !important;}
   .graph-card .graph-title::before{left:6px;font-size:0.7rem;}
   .graph-resize-handle.se{top:4px;right:6px;}
+
+  /* ===== Kartu parameter bisa digeser (tarik pegangan ⠿ di bagian atas kartu) ===== */
+  .param-grip{display:flex;align-items:center;justify-content:center;height:12px;margin:-2px -2px 1px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;color:#D9D5C7;font-size:0.7rem;line-height:1;letter-spacing:2px;opacity:.85;}
+  .param-grip::before{content:'⠿⠿⠿';}
+  .param-grip:active{cursor:grabbing;}
+  .canvas-params.dragging{box-shadow:0 10px 26px rgba(0,0,0,.5);outline:1px solid var(--beam);}
 </style>
 <!-- ===== PROTEKSI KONTEN (anti klik kanan, simpan halaman, cetak, screenshot) ===== -->
 <style id="sp-css">
@@ -2743,6 +2749,42 @@ window.addEventListener('resize',()=>{if(ov.classList.contains('on'))rs();});
   ['lrnBtn','gmBtn','musBtn','lrn','gm','rotateToast'].forEach(id=>{
     const el=document.getElementById(id); if(el && el.parentNode!==lab) lab.appendChild(el);
   });
+})();
+</script>
+<script>
+/* Kartu parameter (kecepatan awal, durasi maksimum, dst.) dapat digeser lewat pegangan di atas kartu */
+(function(){
+  const card=document.querySelector('.canvas-params'), wrap=document.querySelector('.track-wrap'), stack=document.getElementById('ctrlStack');
+  if(!card||!wrap||!stack) return;
+  const grip=document.createElement('div'); grip.className='param-grip'; grip.title='Geser kartu (klik dua kali untuk mengembalikan)';
+  card.insertBefore(grip, card.firstChild);
+  let dx=0, dy=0, sx=0, sy=0, bx=0, by=0, drag=false;
+  function apply(){ card.style.transform = (dx||dy) ? 'translate('+dx+'px,'+dy+'px)' : ''; }
+  function clamp(){
+    // kembalikan ke posisi dasar sementara untuk mengukur, lalu batasi agar tetap di dalam kanvas
+    apply();
+    const w=wrap.getBoundingClientRect(), c=card.getBoundingClientRect();
+    const baseL=c.left-dx, baseT=c.top-dy;
+    dx=Math.max(w.left+2-baseL, Math.min(dx, w.right-2-c.width-baseL));
+    dy=Math.max(w.top+2-baseT,  Math.min(dy, w.bottom-2-c.height-baseT));
+    apply();
+  }
+  function raise(on){ stack.style.setProperty('z-index', on?'50':'', on?'important':''); }
+  grip.addEventListener('pointerdown', e=>{
+    e.preventDefault(); drag=true; sx=e.clientX; sy=e.clientY; bx=dx; by=dy;
+    card.classList.add('dragging'); raise(true);
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  grip.addEventListener('pointermove', e=>{
+    if(!drag) return;
+    dx=bx+e.clientX-sx; dy=by+e.clientY-sy; clamp();
+  });
+  const end=()=>{ if(!drag) return; drag=false; card.classList.remove('dragging'); };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+  grip.addEventListener('dblclick', ()=>{ dx=dy=0; apply(); raise(false); });
+  window.addEventListener('resize', ()=>setTimeout(()=>{ if(dx||dy) clamp(); },150));
+  document.addEventListener('fullscreenchange', ()=>setTimeout(()=>{ if(dx||dy) clamp(); },300));
 })();
 </script>
 </body>
