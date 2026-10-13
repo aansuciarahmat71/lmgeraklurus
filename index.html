@@ -977,6 +977,51 @@
   .track-wrap > *:not(#bgCanvas){position:relative;z-index:1;}
   .track-wrap.bg-live.mode-horizontal,
   html[data-theme="light"] .track-wrap.bg-live.mode-horizontal{background-image:none !important;}
+
+  /* ===== Kartu Putar & Parameter: ukuran dikurangi setengah, tersusun vertikal (default) ===== */
+  .ctrl-stack{display:flex;flex-direction:column;gap:5px;width:138px;flex:none;align-self:flex-start;box-sizing:border-box;}
+  .ctrl-stack .canvas-actions,
+  .ctrl-stack .canvas-params{
+    width:100%;max-width:100%;min-width:0;margin:0;box-sizing:border-box;
+    grid-column:auto;grid-row:auto;grid-template-columns:1fr;
+    padding:4px 5px 5px;gap:3px;border-radius:6px;border-bottom:none;
+  }
+  .ctrl-stack .canvas-actions{flex-wrap:wrap;align-items:center;align-self:auto;}
+  .ctrl-stack .canvas-actions .btn,
+  .ctrl-stack .canvas-actions .btn.primary{
+    flex:1 1 40%;min-width:0;min-height:24px;padding:3px 4px;font-size:0.56rem;border-radius:4px;line-height:1.4;
+  }
+  .ctrl-stack .canvas-actions .speed-inline{flex:1 1 100%;max-width:none;}
+  .ctrl-stack .ctrl-group{gap:2px;}
+  .ctrl-stack .ctrl-label,
+  .ctrl-stack .canvas-params .ctrl-label,
+  .ctrl-stack .canvas-actions .ctrl-label{font-size:0.52rem;gap:4px;flex-wrap:wrap;line-height:1.25;}
+  .ctrl-stack .ctrl-label b,
+  .ctrl-stack .canvas-params .ctrl-label b,
+  .ctrl-stack .canvas-actions .ctrl-label b{font-size:0.52rem;white-space:nowrap;}
+  .ctrl-stack input[type="range"]{height:3px;}
+  .ctrl-stack input[type="range"]::-webkit-slider-thumb{width:12px;height:12px;border-width:2px;}
+  @media (pointer:coarse){
+    .ctrl-stack input[type="range"]::-webkit-slider-thumb{width:16px;height:16px;}
+  }
+  /* Mode mobil (horizontal): kartu melayang di kiri-atas kanvas, tidak memakan tinggi lintasan */
+  .track-wrap.mode-horizontal{display:flex !important;flex-direction:column;}
+  .track-wrap.mode-horizontal > .ctrl-stack{position:absolute !important;left:10px;top:8px;z-index:6 !important;}
+  .track-wrap.mode-horizontal .track{grid-column:auto;grid-row:auto;flex:1 1 auto;}
+  /* Mode vertikal: kartu di kolom kiri, lintasan vertikal di kanan */
+  .track-wrap:not(.mode-horizontal){display:grid !important;grid-template-columns:138px minmax(0,1fr);grid-template-rows:minmax(0,1fr);column-gap:8px;align-items:start;}
+  .track-wrap:not(.mode-horizontal) > .ctrl-stack{grid-column:1;grid-row:1;}
+  .track-wrap:not(.mode-horizontal) > .vtrack-outer{grid-column:2;grid-row:1;align-self:stretch;min-height:110px;margin-top:0;}
+  /* Tombol Belajar/Tantangan, musik & panel di dalam .lab agar tetap tampil saat fullscreen */
+  .lab > #lrnBtn,.lab > #gmBtn,.lab > #musBtn{position:fixed;}
+  .lab > #musBtn{top:auto !important;bottom:max(66px,calc(env(safe-area-inset-bottom) + 66px)) !important;transform:none !important;}
+
+  /* ===== Kartu grafik: ukuran default dikurangi 50% (compact) ===== */
+  .graph-card{min-width:100px;min-height:70px;border-radius:10px;padding:0 5px 3px;}
+  .graph-card .graph-title{font-size:0.68rem !important;white-space:nowrap;padding:5px 24px 5px 18px;margin:0 -5px 4px;}
+  .graph-card .graph-title span.unit{display:none !important;}
+  .graph-card .graph-title::before{left:6px;font-size:0.7rem;}
+  .graph-resize-handle.se{top:4px;right:6px;}
 </style>
 <!-- ===== PROTEKSI KONTEN (anti klik kanan, simpan halaman, cetak, screenshot) ===== -->
 <style id="sp-css">
@@ -1128,6 +1173,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
         <canvas id="bgCanvas" aria-hidden="true"></canvas>
         <div class="track-label" id="trackLabel" style="display:none;">Lintasan Mobil</div>
 
+        <div class="ctrl-stack" id="ctrlStack">
         <div class="canvas-actions">
           <button class="btn primary" id="playBtn">▶ Putar</button>
           <button class="btn" id="resetBtn">↺ Ulang</button>
@@ -1159,6 +1205,8 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
             <input type="range" id="h0" min="5" max="60" step="1" value="20">
           </div>
         </div>
+
+        </div><!-- /ctrl-stack -->
 
         <div class="track" id="track">
           <div class="dist-line" id="distLine"></div>
@@ -1570,7 +1618,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   }
 
   function makeGraphResizable(card){
-    const MIN_W = 140, MIN_H = 90;
+    const MIN_W = 100, MIN_H = 70;
     let sx=0, sy=0, sl=0, st=0, sw=0, sh=0, type='';
     function onMove(e){
       const dx = e.clientX - sx, dy = e.clientY - sy;
@@ -1660,41 +1708,17 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   const shortLandscape = window.matchMedia('(max-height:540px) and (orientation:landscape)');
 
   function layoutGraphsDefault(){
-    // Posisi & ukuran DEFAULT: grafik menumpang di area kosong kanvas utama
-    // (di atas jalur mobil / di samping lintasan vertikal). Tetap bisa digeser & diubah ukurannya.
+    // Posisi DEFAULT: pojok KANAN ATAS kanvas, dua grafik berdampingan (horizontal), ukuran 150x100
+    // (50% dari ukuran sebelumnya). Tetap bisa digeser & diubah ukurannya.
     const cr = graphsBox.getBoundingClientRect();
     if(cr.width < 10 || cr.height < 10) return;
-    const R = el => { const r = el.getBoundingClientRect(); return {l:r.left-cr.left, t:r.top-cr.top, r:r.right-cr.left, b:r.bottom-cr.top, w:r.width, h:r.height}; };
-    const wrap = R(trackWrapEl);
-    const GAP = 8, PAD = 8, MINW = 140, MINH = 110, CAR_ZONE = 150;
-    let area;
-    if(isVertical()){
-      const v = R(vtrack);
-      const l = v.r + 14;
-      area = {l:l, t:v.t, w:wrap.r - PAD - l, h:v.h};
-      if(area.w < MINW) area = {l:wrap.l + PAD, t:v.t, w:wrap.w - 2*PAD, h:v.h};
-    } else {
-      const tr = R(track);
-      if(wrap.w >= 600){
-        const l = wrap.l + wrap.w*0.5 + GAP;
-        let top = wrap.t + PAD;
-        if(shortLandscape.matches) top = R(document.querySelector('.canvas-params')).b + 4;
-        area = {l:l, t:top, w:wrap.r - PAD - l, h:(tr.b - CAR_ZONE) - top};
-      } else {
-        area = {l:wrap.l + PAD, t:tr.t + 4, w:wrap.w - 2*PAD, h:tr.h - CAR_ZONE};
-      }
-    }
-    const aw = Math.max(area.w, MINW), ah = Math.max(area.h, MINH);
-    let w, h, pos;
-    if(aw >= 2*MINW + GAP){
-      w = Math.min(300, (aw - GAP)/2);
-      h = Math.max(MINH, Math.min(ah, 200));
-      pos = [[area.l, area.t],[area.l + w + GAP, area.t]];
-    } else {
-      w = Math.min(300, aw);
-      h = Math.max(MINH, Math.min((ah - GAP)/2, 170));
-      pos = [[area.l, area.t],[area.l, area.t + h + GAP]];
-    }
+    const wr = trackWrapEl.getBoundingClientRect();
+    const GAP = 6, PAD = 8, W0 = 150, H0 = 100, MINW = 100;
+    const right = wr.right - cr.left - PAD, top = wr.top - cr.top + PAD;
+    const avail = Math.max(2*MINW + GAP, wr.width - 2*PAD);
+    const w = Math.min(W0, (avail - GAP)/2), h = H0;
+    const x2 = right - w, x1 = x2 - GAP - w;
+    const pos = [[x1, top],[x2, top]];
     graphCards.forEach((c,i)=>{
       c.style.width = w+'px'; c.style.height = h+'px';
       c.style.left = pos[i][0]+'px'; c.style.top = pos[i][1]+'px';
@@ -2227,6 +2251,51 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 })();
 
 // ==========================================
+// POSISI MOBIL SELALU DI JALAN RAYA (semua ukuran layar, termasuk HP landscape & fullscreen)
+// Foto latar memakai "cover" sehingga letak jalan di layar berubah-ubah mengikuti rasio
+// kanvas. Di sini posisi vertikal jalan dihitung dari rumus yang sama dengan latar
+// (skala cover + posisi 60%), lalu bagian bawah roda mobil diletakkan tepat di aspal.
+// ==========================================
+(function(){
+  const IW = 1536, IH = 627;   // ukuran foto latar
+  const ROAD_Y = 538;          // titik tapak roda pada foto (aspal lajur depan, di atas garis kuning)
+  const CAR_PAD = 5;           // jarak dasar gambar mobil ke dasar roda (px)
+  const wrap = document.querySelector('.track-wrap');
+  const trackEl = document.getElementById('track');
+  const carEl = document.getElementById('car');
+  if(!wrap || !trackEl || !carEl) return;
+  let last = null;
+
+  function place(){
+    if(!wrap.classList.contains('mode-horizontal')) return;
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+    if(W < 2 || H < 2) return;
+    const wr = wrap.getBoundingClientRect(), tr = trackEl.getBoundingClientRect();
+    if(!tr.height) return;
+    const S  = Math.max(W/IW, H/IH);
+    const DY = (H - IH*S) * 0.6;
+    const roadViewportY = wr.top + wrap.clientTop + DY + ROAD_Y*S;
+    const trackBottomInner = tr.bottom - (parseFloat(getComputedStyle(trackEl).borderBottomWidth) || 0);
+    const b = Math.round((trackBottomInner - (roadViewportY + CAR_PAD)) * 10) / 10;
+    if(b !== last){ last = b; carEl.style.bottom = b + 'px'; }
+  }
+
+  function soon(){ place(); requestAnimationFrame(place); setTimeout(place,150); setTimeout(place,500); setTimeout(place,1200); }
+
+  if('ResizeObserver' in window){
+    const ro = new ResizeObserver(place);
+    ro.observe(wrap); ro.observe(trackEl);
+  }
+  window.addEventListener('resize', soon);
+  window.addEventListener('orientationchange', soon);
+  ['fullscreenchange','webkitfullscreenchange','msfullscreenchange'].forEach(ev=>document.addEventListener(ev, soon));
+  if(window.visualViewport) window.visualViewport.addEventListener('resize', soon);
+  window.addEventListener('load', soon);
+  setInterval(place, 400);   // jaring pengaman (bilah alamat HP, perubahan mode, dll.)
+  soon();
+})();
+
+// ==========================================
 // FULL SCREEN
 // ==========================================
 (function(){
@@ -2665,6 +2734,15 @@ window.addEventListener('resize',()=>{if(ov.classList.contains('on'))rs();});
  const g1=e=>{if(b.contains(e.target))return;if(!ok&&pref!=='0'){ok=true;start();}['pointerdown','keydown','touchstart'].forEach(v=>document.removeEventListener(v,g1));};
  ['pointerdown','keydown','touchstart'].forEach(v=>document.addEventListener(v,g1,{passive:true}));
  document.addEventListener('visibilitychange',()=>{if(!ac)return;if(document.hidden)ac.suspend();else if(run)ac.resume();});
+})();
+</script>
+<script>
+/* Pindahkan tombol & panel melayang ke dalam .lab: elemen di luar elemen fullscreen tidak tampil saat layar penuh */
+(function(){
+  const lab=document.querySelector('.lab'); if(!lab) return;
+  ['lrnBtn','gmBtn','musBtn','lrn','gm','rotateToast'].forEach(id=>{
+    const el=document.getElementById(id); if(el && el.parentNode!==lab) lab.appendChild(el);
+  });
 })();
 </script>
 </body>
