@@ -1014,7 +1014,7 @@
   .track-wrap:not(.mode-horizontal) > .vtrack-outer{grid-column:2;grid-row:1;align-self:stretch;min-height:110px;margin-top:0;}
   /* Tombol Belajar/Tantangan, musik & panel di dalam .lab agar tetap tampil saat fullscreen */
   .lab > #lrnBtn,.lab > #gmBtn,.lab > #musBtn{position:fixed;}
-  .lab > #musBtn{top:auto !important;bottom:max(66px,calc(env(safe-area-inset-bottom) + 66px)) !important;transform:none !important;}
+  .lab > #musBtn{top:auto !important;left:auto !important;right:max(12px,env(safe-area-inset-right)) !important;bottom:max(56px,calc(env(safe-area-inset-bottom) + 56px)) !important;transform:none !important;}
 
   /* ===== Kartu grafik: ukuran default dikurangi 50% (compact) ===== */
   .graph-card{min-width:100px;min-height:70px;border-radius:10px;padding:0 5px 3px;}
@@ -1028,6 +1028,18 @@
   .param-grip::before{content:'⠿⠿⠿';}
   .param-grip:active{cursor:grabbing;}
   .canvas-params.dragging{box-shadow:0 10px 26px rgba(0,0,0,.5);outline:1px solid var(--beam);}
+
+  /* ===== Orientasi: landscape = kartu Putar & Parameter berdampingan (horizontal); portrait = bertumpuk (vertikal) ===== */
+  .ctrl-stack{width:auto;flex-direction:column;align-items:flex-start;}
+  .ctrl-stack .canvas-actions,
+  .ctrl-stack .canvas-params{width:138px;max-width:138px;flex:none;}
+  @media (orientation:landscape){
+    .ctrl-stack{flex-direction:row;align-items:flex-start;gap:6px;}
+  }
+  @media (orientation:portrait){
+    .ctrl-stack{flex-direction:column;}
+  }
+  .track-wrap:not(.mode-horizontal){grid-template-columns:auto minmax(0,1fr);}
 </style>
 <!-- ===== PROTEKSI KONTEN (anti klik kanan, simpan halaman, cetak, screenshot) ===== -->
 <style id="sp-css">
@@ -1714,17 +1726,24 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   const shortLandscape = window.matchMedia('(max-height:540px) and (orientation:landscape)');
 
   function layoutGraphsDefault(){
-    // Posisi DEFAULT: pojok KANAN ATAS kanvas, dua grafik berdampingan (horizontal), ukuran 150x100
-    // (50% dari ukuran sebelumnya). Tetap bisa digeser & diubah ukurannya.
+    // Posisi DEFAULT: pojok KANAN ATAS kanvas, ukuran 150x100.
+    // Landscape: dua grafik berdampingan (horizontal). Portrait: dua grafik bertumpuk (vertikal).
+    // Tetap bisa digeser & diubah ukurannya.
     const cr = graphsBox.getBoundingClientRect();
     if(cr.width < 10 || cr.height < 10) return;
     const wr = trackWrapEl.getBoundingClientRect();
     const GAP = 6, PAD = 8, W0 = 150, H0 = 100, MINW = 100;
+    const portrait = window.matchMedia('(orientation:portrait)').matches;
     const right = wr.right - cr.left - PAD, top = wr.top - cr.top + PAD;
-    const avail = Math.max(2*MINW + GAP, wr.width - 2*PAD);
-    const w = Math.min(W0, (avail - GAP)/2), h = H0;
-    const x2 = right - w, x1 = x2 - GAP - w;
-    const pos = [[x1, top],[x2, top]];
+    let w, h, pos;
+    if(portrait){
+      w = Math.min(W0, Math.max(MINW, wr.width - 2*PAD)); h = H0;
+      pos = [[right - w, top],[right - w, top + h + GAP]];
+    } else {
+      const avail = Math.max(2*MINW + GAP, wr.width - 2*PAD);
+      w = Math.min(W0, (avail - GAP)/2); h = H0;
+      pos = [[right - 2*w - GAP, top],[right - w, top]];
+    }
     graphCards.forEach((c,i)=>{
       c.style.width = w+'px'; c.style.height = h+'px';
       c.style.left = pos[i][0]+'px'; c.style.top = pos[i][1]+'px';
